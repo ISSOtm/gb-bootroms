@@ -1,0 +1,14 @@
+HeaderLogo = $0104
+HeaderTitle = $0134
+HeaderMenufacturer = $013F
+HeaderCGBCompat = $0143
+HeaderNewLicensee = $0144
+HeaderSGBFlag = $0146
+HeaderCartType = $0147
+HeaderROMSize = $0148
+HeaderRAMSize = $0149
+HeaderRegionCode = $014A
+HeaderOldLicensee = $014B
+HeaderROMVersion = $014C
+HeaderChecksum = $014D
+HeaderGlobalChecksum = $014E
