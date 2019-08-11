@@ -191,12 +191,19 @@ Setup:
     jr .done
 
     nop
+IF !DEF(agb)
     nop
+ENDC
 
 .done
     call SetupCompatibility
     xor a
     ldh [rSVBK], a
+; We basically know for sure that the AGB boot ROM simply inserts an extra `inc b`
+; What we don't know is where
+IF DEF(agb)
+    inc b
+ENDC
     ld a, $11
     ldh [$FF50], a
 
