@@ -965,12 +965,17 @@ SetupCompatibility:
     ld a, [HeaderCGBCompat]
     bit 7, a
     jr z, .dmgMode
+    ; See below for what this is
     ldh [$FF4C], a
     jr .done
 
+    ; Credit to @mattcurrie for finding what those registers are!
 .dmgMode
+    ; "CPU mode register" according to Fig. 11 in this patent:
+    ; https://patents.google.com/patent/US6322447B1/en?oq=US6322447bi
     ld a, $04
     ldh [$FF4C], a
+    ; "OBJ priority mode designating register" in the same patent
     ld a, 1
     ldh [$FF6C], a
     ld hl, wPalBuffer
