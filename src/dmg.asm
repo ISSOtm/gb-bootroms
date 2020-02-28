@@ -1,4 +1,4 @@
-INCLUDE "hardware.inc"
+INCLUDE "hardware.inc/hardware.inc"
 INCLUDE "header.inc"
 
 ; Macro to allow defining gfx in a clearer format
