@@ -748,7 +748,7 @@ ENDC
     jr .useIndex00
 .foundTitleChecksum
     ld a, c
-    sub $41
+    sub TitleChecksums.ambiguous - TitleChecksums
     jr c, .gotIndex
     ld hl, TitleFourthLetters
     ld d, 0
@@ -765,7 +765,7 @@ ENDC
     ld a, c
     add a, e
     ld c, a
-    sub TitleFourthLettersEnd - TitleFourthLetters + $41
+    sub (TitleFourthLettersEnd - TitleFourthLetters) + (TitleChecksums.ambiguous - TitleChecksums)
     jr c, .seekFourthLetter
 .useIndex00
     ld c, 0
@@ -1060,6 +1060,7 @@ TitleChecksums:
     db $4B, $90, $17, $10, $39, $F7, $F6, $A2, $49, $4E, $43, $68, $E0, $8B, $F0, $CE
     db $0C, $29, $E8, $B7, $86, $9A, $52, $01, $9D, $71, $9C, $BD, $5D, $6D, $67, $3F
     db $6B
+.ambiguous
     ; These checksums are also discriminated based on the 4th title letter
     db $B3, $46, $28, $A5, $C6, $D3, $27, $61, $18, $66, $6A, $BF, $0D, $F4
 TitleChecksumsEnd:
