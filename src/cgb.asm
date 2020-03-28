@@ -1,6 +1,32 @@
 INCLUDE "hardware.inc/hardware.inc"
 INCLUDE "header.inc"
 
+; Official Nintendo names for those registers
+; Obtained from the archive leaked here: http://boards.4channel.org/vp/thread/43077976
+; Translation of the document's register descriptions will follow
+
+; CPU mode select
+; XXXXmmXX
+; 00: CGB mode (for execution of CGB supporting cartridges)
+; 01: DMG/MGB mode (for execution of DMG/MGB exclusive cartridges)
+; 10: PGB1 mode (a mode in which the CPU is stopped and the LCD is driven externally)
+; 11: PGB2 mode (a mode in which the LCD is driven externally while the CPU is operating)
+rKEY0 equ $FF4C ; Side note: the register's name is consistent with rKEY1 at $FF4D
+; Internal/external rom bank register
+; XXXXXXXr
+; 0: monitor ROM, 1: cassette ROM
+rBANK equ $FF50
+; OBJ priority mode designation register
+; XXXXXXXp
+; 0: Lower OBJ-NO object priority
+; 1: Smaller X coordinate object priority
+rOPRI equ $FF6C
+
+; KEY0 is known as the "CPU mode register" in Fig. 11 of this patent:
+; https://patents.google.com/patent/US6322447B1/en?oq=US6322447bi
+; "OBJ priority mode designating register" in the same patent
+; Credit to @mattcurrie for this finding!
+
 
 COLOR_MASK equ $1F ; Each color spans 5 bits
 COLOR_MAX equ $1F
@@ -274,7 +300,7 @@ IF DEF(agb)
     inc b
 ENDC
     ld a, $11
-    ldh [$FF50], a
+    ldh [rBANK], a
 
 
 SECTION "Second section", ROM0[$200]
@@ -1101,19 +1127,14 @@ SetupCompatibility:
     ld a, [HeaderCGBCompat]
     bit 7, a
     jr z, .dmgMode
-    ; See below for what this is
-    ldh [$FF4C], a
+    ldh [rKEY0], a
     jr .done
 
-    ; Credit to @mattcurrie for finding what those registers are!
 .dmgMode
-    ; "CPU mode register" according to Fig. 11 in this patent:
-    ; https://patents.google.com/patent/US6322447B1/en?oq=US6322447bi
     ld a, $04
-    ldh [$FF4C], a
-    ; "OBJ priority mode designating register" in the same patent
+    ldh [rKEY0], a
     ld a, 1
-    ldh [$FF6C], a
+    ldh [rOPRI], a
 
     ld hl, wPalBuffer
     call AddPalTripletOffset
