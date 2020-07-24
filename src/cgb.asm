@@ -283,12 +283,13 @@ Setup:
     jr nz, .checksumFailure
 
     call PerformFadeout
-    jr .done
-
-    nop
 IF !DEF(agb)
+    jr .done
+ELSE
     nop
 ENDC
+    nop
+    nop
 
 .done
     call SetupCompatibility
@@ -762,7 +763,11 @@ IF DEF(cgb0)
     jr nz, .copyLogoTile
 ENDC
 
+IF !DEF(agb)
     ld de, HeaderLogo
+ELSE
+    ld de, hLogoBuffer
+ENDC
     call DecodeLogoHalf
     ld bc, -$58 ; Go backwards 5 and a half tiles
     add hl, bc
