@@ -28,13 +28,18 @@ compare: sha256sums.txt all
 	sha256sum -c $<
 .PHONY: compare
 
-all: $(patsubst %,bin/%.bin,$(MODELS))
+BINS = $(patsubst %,bin/%.bin,$(MODELS))
+SYMS = $(patsubst %,bin/%.sym,$(MODELS))
+all: $(BINS) $(SYMS)
 .PHONY: all
 
 clean:
 	rm -rf bin obj
 .PHONY: clean
 
+bin/%.sym: obj/%.o
+	@mkdir -p $(@D)
+	TMPFILE=$$(mktemp) && rgblink -n $$TMPFILE $^ && sed 's/^0*:/BOOT:/' $$TMPFILE > $@; rm $$TMPFILE
 bin/%.bin: obj/%.o
 	@mkdir -p $(@D)
 	rgblink -p 0 -o $@ $^
@@ -42,4 +47,4 @@ bin/%.bin: obj/%.o
 
 obj/%.o: src/$$($$*_asm)
 	@mkdir -p $(@D)
-	rgbasm -p 0xFF -D $* -i src/ -o $@ $<
+	rgbasm -E -p 0xFF -D $* -i src/ -o $@ $<
