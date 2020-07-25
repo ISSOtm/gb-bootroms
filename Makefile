@@ -2,7 +2,7 @@
 .SECONDEXPANSION:
 
 
-MODELS = dmg0 dmg mgb sgb sgb2 cgb0 cgb agb
+MODELS = dmg0 dmg mgb sgb sgb2 cgb0 cgb agb stadium2
 
 dmg0_asm  = dmg.asm
 dmg0_size = 256
@@ -22,6 +22,9 @@ cgb_asm   = cgb.asm
 cgb_size  = 2304
 agb_asm   = cgb.asm
 agb_size  = 2304
+
+stadium2_asm  = stadium2.asm
+stadium2_size = 1008
 
 
 compare: sha256sums.txt all
