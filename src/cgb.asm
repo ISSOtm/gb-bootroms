@@ -925,7 +925,7 @@ ENDC
 .useDefaultIndex
     ld c, 0
 .gotIndex
-    ld hl, PaletteIndexesAndFlags
+    ld hl, PalTripletIDsAndFlags
     ld b, 0
     add hl, bc
     ld a, [hl]
@@ -943,21 +943,31 @@ IF DEF(cgb0)
     ld [wPalShufflingFlagsCopy], a
 ENDC
     ld [wPalShufflingFlags], a
-    call WriteShuffledPalTriplets
-    ret
+    ; Nintendo: "damn, we don't have enough room in the boot ROM to clear wave RAM!"
+    ; Also Nintendo:
+    call WriteShuffledPalTriplets ; The label is literally right below,
+    ret ; these two instructions are dead code!
 
-; "bit N" refers to the Nth bit in wPalShufflingFlags
-;
-; Shuffles predefined palette triplets as such:
-; - 1st entry (OBP0) is set to 3rd elem if bit 0 is set, otherwise 1st
-; - 2nd entry (OBP1) is set to 2nd elem if bit 2 is set, otherwise 3rd if bit 1 is set, otherwise 1st
-; - 3rd entry (BGP)  is set to 3rd elem always
+; This shuffles **all** the predefined palette index triplets (`PaletteOffsets`) depending on the
+; shuffling bits read from the entry in `PalTripletIDsAndFlags`.
+; For each triplet, the behavior is as follows, depending on the bits in `wPalShufflingFlags`
+; (which, mind you, correspond to the upper 3 bits read from `PalTripletIDsAndFlags`):
+; - The third offset in the triplet (BGP's) will always be unchanged, so BGP is basically a baseline
+; - By default (if no bit is set), the third offset will be copied to all 3, so both OBJ palettes
+;   will match BGP
+; - If bit 0 is set, the first offset (OBP0's) will instead be unchanged.
+; - If bit 1 is set, the second offset (OBP1's) will instead use the first "source" offset.
+;   (Thus, if bit 0 was also set, both OBJ palettes will be identical; if it wasn't, OBP0 will
+;   match BGP, but OBP1 won't.)
+; - If bit 2 is set, the second offset (OBP1's) will instead be unchanged; this overrides bit 1 if
+;   it was set.
+; Honestly, the way it's carried out is almost obfuscated, lol
 WriteShuffledPalTriplets:
-    ld de, PaletteIndexes
-    ld hl, wPalIndexBuffer
+    ld de, PaletteOffsets
+    ld hl, wPalOfsBuffer
     ld a, [wPalShufflingFlags]
     ld b, a
-    ld c, (wPalIndexBufferEnd - wPalIndexBuffer) / 3 ; = 90 / 3 = 30
+    ld c, (wPalOfsBufferEnd - wPalOfsBuffer) / 3 ; = 90 / 3 = 30
 .get3Indexes
     bit 0, b
     jr nz, .bit0Set
@@ -999,7 +1009,7 @@ WriteShuffledPalTriplets:
     dec c
     jr nz, .get3Indexes
 
-    ld hl, wPalIndexBuffer
+    ld hl, wPalOfsBuffer
     ld de, wPalBuffer
     call GetPalettes
     ret
@@ -1098,7 +1108,7 @@ PickDMGPalette:
     ld [wPaletteOverrideIndex], a
     ld a, 30
     ld [wPreventTerminationCounter], a
-    ld de, JoypadCombosEnd - JoypadCombos - 1
+    ld de, JoypadCombosTripletIDsAndFlags - JoypadCombos - 1
     add hl, de
     ld d, [hl]
     ld a, d
@@ -1218,95 +1228,139 @@ GameBoyLogoTiles:
 GameBoyLogoTilesEnd:
 
 
+; The position of the cartridge's title checksum in this table is used as the index
+; into `PalTripletIDsAndFlags`, except for the "ambiguous" checksums.
 TitleChecksums:
-    db $00, $88, $16, $36, $D1, $DB, $F2, $3C, $8C, $92, $3D, $5C, $58, $C9, $3E, $70
-    db $1D, $59, $69, $19, $35, $A8, $14, $AA, $75, $95, $99, $34, $6F, $15, $FF, $97
-    db $4B, $90, $17, $10, $39, $F7, $F6, $A2, $49, $4E, $43, $68, $E0, $8B, $F0, $CE
-    db $0C, $29, $E8, $B7, $86, $9A, $52, $01, $9D, $71, $9C, $BD, $5D, $6D, $67, $3F
+    ; Each line is 8 entries wide
+    db $00, $88, $16, $36, $D1, $DB, $F2, $3C
+    db $8C, $92, $3D, $5C, $58, $C9, $3E, $70
+    db $1D, $59, $69, $19, $35, $A8, $14, $AA
+    db $75, $95, $99, $34, $6F, $15, $FF, $97
+    db $4B, $90, $17, $10, $39, $F7, $F6, $A2
+    db $49, $4E, $43, $68, $E0, $8B, $F0, $CE
+    db $0C, $29, $E8, $B7, $86, $9A, $52, $01
+    db $9D, $71, $9C, $BD, $5D, $6D, $67, $3F
     db $6B
 .ambiguous
-    ; These checksums are also discriminated based on the 4th title letter
+    ; These 14 checksums are also discriminated based on the 4th title letter, see table right below
     db $B3, $46, $28, $A5, $C6, $D3, $27, $61, $18, $66, $6A, $BF, $0D, $F4
 TitleChecksumsEnd:
 
-    ; To explain this: letters for index $41 are the leftmost ones, ie.
-    ; B, U and R in order.
+; How to read this: letters for index $41 are the leftmost ones, letters for $4E are the rightmost
+; ones, etc. The table must then be read vertically, top to bottom.
+; For example, the letters for $41 are B, U, and R, in that order.
 TitleFourthLetters:
-; $4x:  123456789ABCDE
-    db "BEFAARBEKEK R-"
-.row
-    db "URAR INAILICE "
-    db "R"
+; $4x:   123456789ABCDE
+     db "BEFAARBEKEK R-"
+.row db "URAR INAILICE "
+     db "R"
 TitleFourthLettersEnd:
 
 
-PaletteIndexesAndFlags:
-    ; TODO: improve this dump
-    db $7C, $08, $12, $A3, $A2, $07, $87, $4B, $20, $12, $65, $A8, $16, $A9, $86, $B1, $68, $A0, $87, $66, $12, $A1, $30, $3C, $12, $85, $12, $64, $1B, $07, $06, $6F, $6E, $6E, $AE, $AF, $6F, $B2, $AF, $B2, $A8, $AB, $6F, $AF, $86, $AE, $A2, $A2, $12, $AF, $13, $12, $A1, $6E, $AF, $AF, $AD, $06, $4C, $6E, $AF, $AF, $12, $7C, $AC, $A8, $6A, $6E, $13, $A0, $2D, $A8, $2B, $AC, $64, $AC, $6D, $87, $BC, $60, $B4, $13, $72, $7C, $B5, $AE, $AE, $7C, $7C, $65, $A2, $6C, $64, $85
+; For each of these, the lower 5 bits indicate which row of `PaletteOffsets` to use.
+; The upper 3 bits indicate how the palette shall be "shuffled".
+; See `WriteShuffledPalTriplets` for an explanation of how they work.
+MACRO idx_flgs
+    REPT _NARG / 2
+        db (\1) << 5 | (\2)
+        SHIFT 2
+    ENDR
+ENDM
+PalTripletIDsAndFlags:
+    ; Each line is 8 entries wide
+    idx_flgs %011,28, %000, 8, %000,18, %101, 3, %101, 2, %000, 7, %100, 7, %010,11
+    idx_flgs %001, 0, %000,18, %011, 5, %101, 8, %000,22, %101, 9, %100, 6, %101,17
+    idx_flgs %011, 8, %101, 0, %100, 7, %011, 6, %000,18, %101, 1, %001,16, %001,28
+    idx_flgs %000,18, %100, 5, %000,18, %011, 4, %000,27, %000, 7, %000, 6, %011,15
+    idx_flgs %011,14, %011,14, %101,14, %101,15, %011,15, %101,18, %101,15, %101,18
+    idx_flgs %101, 8, %101,11, %011,15, %101,15, %100, 6, %101,14, %101, 2, %101, 2
+    idx_flgs %000,18, %101,15, %000,19, %000,18, %101, 1, %011,14, %101,15, %101,15
+    idx_flgs %101,13, %000, 6, %010,12, %011,14, %101,15, %101,15, %000,18, %011,28
+    idx_flgs %101,12
+    ; Those correspond to the "ambiguous" checksums, laid out like the letter disambiguation table
+    idx_flgs %101, 8, %011,10, %011,14, %000,19, %101, 0, %001,13, %101, 8, %001,11, %101,12, %011, 4, %101,12, %011,13, %100, 7, %101,28
+    idx_flgs %011, 0, %101,20, %000,19, %011,18, %011,28, %101,21, %101,14, %101,14, %011,28, %011,28, %011, 5, %101, 2, %011,12, %011, 4
+    idx_flgs %100, 5
 
-PaletteIndexes:
-    ; BGP will always be the third entry
-    ; OBP0 can be either the first or last entry
-    ; OBP1 can be any entry
-    db $80, $B0, $40
-    db $88, $20, $68
-    db $DE, $00, $70
-    db $DE, $20, $78
-    db $20, $20, $38
-    db $20, $B0, $90
-    db $20, $B0, $A0
-    db $E0, $B0, $C0
-    db $98, $B6, $48
-    db $80, $E0, $50
-    db $1E, $1E, $58
-    db $20, $B8, $E0
-    db $88, $B0, $10
-    db $20, $00, $10
-    db $20, $E0, $18
-    db $E0, $18, $00
-    db $18, $E0, $20
-    db $A8, $E0, $20
-    db $18, $E0, $00
-    db $20, $18, $D8
-    db $C8, $18, $E0
-    db $00, $E0, $40
-    db $28, $28, $28
-    db $18, $E0, $60
-    db $20, $18, $E0
-    db $00, $00, $08
-    db $E0, $18, $30
-    db $D0, $D0, $D0
-    db $20, $E0, $E8
+; These are byte offsets (read: "already multiplied by 8 = sizeof(Palette)") into `Palettes`.
+; Well, except when Nintendo got clever, and used offsets that straddles entries to save space!
+; The table entries should be read as `P*8+O`, with `P` being the palette ID (i.e. the line within
+; `Palettes`), and `O` the offset within the palette (pointed out by a comment whenever relevant),
+; omitted when there is none.
+; In a given triplet:
+; - BGP will always be the third entry.
+; - OBP0 can be either the first or last entry.
+; - OBP1 can be any entry.
+PaletteOffsets:
+    db 16*8,   22*8,    8*8
+    db 17*8,    4*8,   13*8
+    db 27*8+6,  0*8,   14*8
+    db 27*8+6,  4*8,   15*8
+    db  4*8,    4*8,    7*8
+
+    db  4*8,   22*8,   18*8
+    db  4*8,   22*8,   20*8
+    db 28*8,   22*8,   24*8
+    db 19*8,   22*8+6,  9*8
+    db 16*8,   28*8,   10*8
+
+    db  3*8+6,  3*8+6, 11*8
+    db  4*8,   23*8,   28*8
+    db 17*8,   22*8,    2*8
+    db  4*8,    0*8,    2*8
+    db  4*8,   28*8,    3*8
+
+    db 28*8,    3*8,    0*8
+    db  3*8,   28*8,    4*8
+    db 21*8,   28*8,    4*8
+    db  3*8,   28*8,    0*8
+    db  4*8,    3*8,   27*8
+
+    db 25*8,    3*8,   28*8
+    db  0*8,   28*8,    8*8
+    db  5*8,    5*8,    5*8
+    db  3*8,   28*8,   12*8
+    db  4*8,    3*8,   28*8
+
+    db  0*8,    0*8,    1*8
+    db 28*8,    3*8,    6*8
+    db 26*8,   26*8,   26*8
+    db  4*8,   28*8,   29*8
 
 Palettes:
     rgb $1F,$1F,$1F, $1F,$15,$0C, $10,$06,$00, $00,$00,$00
     rgb $1F,$1C,$18, $19,$13,$10, $10,$0D,$05, $0B,$06,$01
     rgb $1F,$1F,$1F, $11,$11,$1B, $0A,$0A,$11, $00,$00,$00
-    rgb $1F,$1F,$1F, $0F,$1F,$06, $00,$10,$00, $00,$00,$00
+    rgb $1F,$1F,$1F, $0F,$1F,$06, $00,$10,$00, $00,$00,$00 ; "3 plus 6" begins at this black
     rgb $1F,$1F,$1F, $1F,$10,$10, $12,$07,$07, $00,$00,$00
+
     rgb $1F,$1F,$1F, $14,$14,$14, $0A,$0A,$0A, $00,$00,$00
     rgb $1F,$1F,$1F, $1F,$1F,$00, $0F,$09,$00, $00,$00,$00
     rgb $1F,$1F,$1F, $0F,$1F,$00, $16,$0E,$00, $00,$00,$00
     rgb $1F,$1F,$1F, $15,$15,$10, $08,$0E,$0F, $00,$00,$00
     rgb $14,$13,$1F, $1F,$1F,$00, $00,$0C,$00, $00,$00,$00
+
     rgb $1F,$1F,$19, $0C,$1D,$1D, $13,$10,$06, $0B,$0B,$0B
     rgb $16,$16,$1F, $1F,$1F,$12, $15,$0B,$08, $00,$00,$00
     rgb $1F,$1F,$14, $1F,$12,$12, $12,$12,$1F, $00,$00,$00
     rgb $1F,$1F,$13, $12,$16,$1F, $0C,$12,$0E, $00,$07,$07
     rgb $0D,$1F,$00, $1F,$1F,$1F, $1F,$0A,$09, $00,$00,$00
+
     rgb $0A,$1B,$00, $1F,$10,$00, $1F,$1F,$00, $1F,$1F,$1F
     rgb $1F,$1F,$1F, $1F,$0E,$00, $12,$08,$00, $00,$00,$00
     rgb $1F,$18,$08, $1F,$1A,$00, $12,$07,$00, $09,$00,$00
     rgb $1F,$1F,$1F, $0A,$1F,$00, $1F,$08,$00, $00,$00,$00
     rgb $1F,$0C,$0A, $1A,$00,$00, $0C,$00,$00, $00,$00,$00
+
     rgb $1F,$1F,$1F, $1F,$13,$00, $1F,$00,$00, $00,$00,$00
     rgb $1F,$1F,$1F, $00,$1F,$00, $06,$10,$00, $00,$09,$00
-    rgb $1F,$1F,$1F, $0B,$17,$1F, $1F,$00,$00, $00,$00,$1F
+    rgb $1F,$1F,$1F, $0B,$17,$1F, $1F,$00,$00, $00,$00,$1F ; "22 plus 6" begins at this blue
     rgb $1F,$1F,$1F, $1F,$1F,$0F, $00,$10,$1F, $1F,$00,$00
     rgb $1F,$1F,$1F, $1F,$1F,$00, $1F,$00,$00, $00,$00,$00
+
     rgb $1F,$1F,$00, $1F,$00,$00, $0C,$00,$00, $00,$00,$00
     rgb $1F,$1F,$1F, $1F,$19,$00, $13,$0C,$00, $00,$00,$00
-    rgb $00,$00,$00, $00,$10,$10, $1F,$1B,$00, $1F,$1F,$1F
+    rgb $00,$00,$00, $00,$10,$10, $1F,$1B,$00, $1F,$1F,$1F ; "27 plus 6" begins at this white
     rgb $1F,$1F,$1F, $0C,$14,$1F, $00,$00,$1F, $00,$00,$00
     rgb $1F,$1F,$1F, $0F,$1F,$06, $00,$0C,$18, $00,$00,$00
 
@@ -1325,20 +1379,39 @@ JoypadCombos:
     db PADF_UP
     db PADF_UP    | PADF_A
     db PADF_UP    | PADF_B
+
     db PADF_LEFT
     db PADF_LEFT  | PADF_A
     db PADF_LEFT  | PADF_B
+
     db PADF_DOWN
     db PADF_DOWN  | PADF_A
     db PADF_DOWN  | PADF_B
+
     db PADF_RIGHT
     db PADF_RIGHT | PADF_A
     db PADF_RIGHT | PADF_B
 JoypadCombosEnd:
 
 
-; Unused data, Liji says those are joypad combo-induced palette indexes?
-    db $12, $B0, $79, $B8, $AD, $16, $17, $07, $BA, $05, $7C, $13, $00, $00, $00, $00
+JoypadCombosTripletIDsAndFlags:
+    idx_flgs %000,18
+    idx_flgs %101,16
+    idx_flgs %011,25
+
+    idx_flgs %101,24
+    idx_flgs %101,13
+    idx_flgs %000,22
+
+    idx_flgs %000,23
+    idx_flgs %000, 7
+    idx_flgs %101,26
+
+    idx_flgs %000, 5
+    idx_flgs %011,28
+    idx_flgs %000,19
+
+    ds 4, 0 ; 4 unused bytes
 
 
 
@@ -1394,7 +1467,7 @@ wPreventTerminationCounter:
 
 wHeldButtons:
     ds 1
-wPressedButtons: ; This is never read, only
+wPressedButtons: ; This is never read, only written to
     ds 1
 
 wPaletteOverrideIndex:
@@ -1432,9 +1505,11 @@ wBGPalBufferEnd:
 
     ds $80
 
-wPalIndexBuffer:
+; The 3 palette offsets are written here for all triplets, modified by the "shuffling flags"
+; For each offset triplet written here, the order is as follows: OBP0, OBP1, BGP
+wPalOfsBuffer:
     ds 90
-wPalIndexBufferEnd:
+wPalOfsBufferEnd:
     ds 6
 wPalIndexBufferRealEnd:
 
