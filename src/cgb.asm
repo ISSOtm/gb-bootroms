@@ -47,7 +47,7 @@ WAVE_RAM_SIZE equ 16
 GB_LOGO_HEIGHT equ 3 ; The logo is 3 tile rows tall
 GB_LOGO_WIDTH equ 16 ; The logo is 12 tiles wide
 LOGO_BLOCK_WIDTH equ 3 ; Width in tiles of one color "block"
-NB_LOGO_PALETTES equs "((BootAnimationColorsEnd - BootAnimationColors) / COLOR_SIZE)"
+NB_LOGO_PALETTES equs "((BootAnimationColors.end - BootAnimationColors) / COLOR_SIZE)"
 GB_LOGO_FIRST_TILE equs "LOW(vGameBoyLogoTiles / TILE_SIZE)"
 
 ; Old "Nintendo" logo constants
@@ -144,7 +144,7 @@ EntryPoint:
 ClearLogoGDMA:
     ; Clear 9 rows starting at the one above the "GAME BOY" logo
     gdma_params wZeroBuffer, (vGameBoyLogoMap & -SCRN_VX_B) - SCRN_VX_B, SCRN_VX_B * 9
-ClearLogoGDMAEnd:
+.end
 ClearLogoTilesGDMA:
     gdma_params wZeroBuffer, vTiles, $40 * TILE_SIZE
 
@@ -193,13 +193,13 @@ RTile:
     gfx X.X..X.X
     gfx .X....X.
     gfx ..XXXX..
-RTileEnd:
+.end
 
 
 ; Titles matching these checksums need the Nintendo logo tilemap in VRAM when they boot up
 LogoTilemapChecksums:
     db $58, $43
-LogoTilemapChecksumsEnd:
+.end
 
 
 Setup:
@@ -235,7 +235,7 @@ Setup:
 
     ; ld hl, vRTile
     ld de, RTile
-    ld b, RTileEnd - RTile
+    ld b, RTile.end - RTile
 .copyRTile
     ld a, [de]
     inc de
@@ -411,7 +411,7 @@ CommitBGPalettes:
     ld hl, wOBJPalBuffer
     ld b, 1
     ld d, (wBGPalBuffer - wOBJPalBuffer) - 1
-    ld e, wBGPalBufferEnd - wBGPalBuffer
+    ld e, wBGPalBuffer.end - wBGPalBuffer
     call SetOBJAndBGPals
     pop hl
     pop de
@@ -577,7 +577,7 @@ PerformFadeout:
     ld hl, ClearLogoGDMA
 .clearLogoTiles
     ld de, rHDMA1
-    ld c, ClearLogoGDMAEnd - ClearLogoGDMA ; Size of GDMA arguments
+    ld c, ClearLogoGDMA.end - ClearLogoGDMA ; Size of GDMA arguments
     call Memcpy
     ret
 
@@ -743,11 +743,11 @@ SetupGameBoyLogo:
     ld de, GameBoyLogoTiles
     ld hl, vGameBoyLogoTiles
 IF DEF(cgb0)
-    ld b, (GameBoyLogoTilesEnd - GameBoyLogoTiles) / 4
+    ld b, (GameBoyLogoTiles.end - GameBoyLogoTiles) / 4
 .copyLogoTile
     ld c, 4
 ELSE
-    ld c, GameBoyLogoTilesEnd - GameBoyLogoTiles
+    ld c, GameBoyLogoTiles.end - GameBoyLogoTiles
 ENDC
 .copyLogoRow
     ld a, [de]
@@ -819,7 +819,7 @@ ENDC
     ; This reads 8 colors from `BootAnimationColors`, which only contains 6
     ld hl, BootAnimationColors
     ld de, wBGPalBuffer
-    ld b, (wBGPalBufferEnd - wBGPalBuffer) / 8
+    ld b, (wBGPalBuffer.end - wBGPalBuffer) / 8
 .initBGPalsLoop
     ; White
     ld a, $FF
@@ -887,7 +887,7 @@ ENDC
     jr z, .foundTitleChecksum
     inc c
     ld a, c
-    cp TitleChecksumsEnd - TitleChecksums
+    cp TitleChecksums.end - TitleChecksums
     jr nz, .seekTitleChecksum
     jr .useDefaultIndex
 
@@ -916,7 +916,7 @@ ENDC
     add a, e
     ld c, a
     ; Compare index against max one
-    sub (TitleFourthLettersEnd - TitleFourthLetters) \ ; Max index
+    sub (TitleFourthLetters.end - TitleFourthLetters) \ ; Max index
       + (TitleChecksums.ambiguous - TitleChecksums) ; (not forgetting base index)
     ; If there's some indexes left to check, keep going
     jr c, .seekFourthLetter
@@ -967,7 +967,7 @@ WriteShuffledPalTriplets:
     ld hl, wPalOfsBuffer
     ld a, [wPalShufflingFlags]
     ld b, a
-    ld c, (wPalOfsBufferEnd - wPalOfsBuffer) / 3 ; = 90 / 3 = 30
+    ld c, (wPalOfsBuffer.end - wPalOfsBuffer) / 3 ; = 90 / 3 = 30
 .get3Indexes
     bit 0, b
     jr nz, .bit0Set
@@ -1098,7 +1098,7 @@ PickDMGPalette:
     jr z, .buttonComboFound
     inc b
     ld a, b
-    cp JoypadCombosEnd - JoypadCombos
+    cp JoypadCombos.end - JoypadCombos
     jr nz, .seekButtonCombo
 .jumpToDone
     jr .done
@@ -1161,7 +1161,7 @@ SetupCompatibility:
     ld hl, LogoTilemapChecksums
     ld a, [wTitleChecksum]
     ld b, a
-    ld c, LogoTilemapChecksumsEnd - LogoTilemapChecksums
+    ld c, LogoTilemapChecksums.end - LogoTilemapChecksums
 .tryWriteLogoTilemap
     ld a, [hli]
     cp b
@@ -1225,7 +1225,7 @@ GameBoyLogoTiles:
     db $FC, $F0, $C0, $00
     db $3E, $7C, $7C, $00
     db $00, $00, $00, $00
-GameBoyLogoTilesEnd:
+.end
 
 
 ; The position of the cartridge's title checksum in this table is used as the index
@@ -1244,7 +1244,7 @@ TitleChecksums:
 .ambiguous
     ; These 14 checksums are also discriminated based on the 4th title letter, see table right below
     db $B3, $46, $28, $A5, $C6, $D3, $27, $61, $18, $66, $6A, $BF, $0D, $F4
-TitleChecksumsEnd:
+.end
 
 ; How to read this: letters for index $41 are the leftmost ones, letters for $4E are the rightmost
 ; ones, etc. The table must then be read vertically, top to bottom.
@@ -1254,7 +1254,7 @@ TitleFourthLetters:
      db "BEFAARBEKEK R-"
 .row db "URAR INAILICE "
      db "R"
-TitleFourthLettersEnd:
+.end
 
 
 ; For each of these, the lower 5 bits indicate which row of `PaletteOffsets` to use.
@@ -1372,7 +1372,7 @@ BootAnimationColors:
     rgb $1F, $00, $1F ; Purple
     rgb $1F, $00, $00 ; Red
     rgb $1F, $1F, $00 ; Yellow
-BootAnimationColorsEnd:
+.end
 
 
 JoypadCombos:
@@ -1391,7 +1391,7 @@ JoypadCombos:
     db PADF_RIGHT
     db PADF_RIGHT | PADF_A
     db PADF_RIGHT | PADF_B
-JoypadCombosEnd:
+.end
 
 
 JoypadCombosTripletIDsAndFlags:
@@ -1430,7 +1430,7 @@ vTiles:
     ds $80
 
 vGameBoyLogoTiles:
-    ds (GameBoyLogoTilesEnd - GameBoyLogoTiles) * 4
+    ds (GameBoyLogoTiles.end - GameBoyLogoTiles) * 4
 vNintendoLogoTiles:
     ds 6 * 16
 vSecondRTile:
@@ -1497,11 +1497,11 @@ wZeroBuffer:
 
 wOBJPalBuffer:
     ds 8 * 8
-wOBJPalBufferEnd:
+.end
 
 wBGPalBuffer:
     ds 8 * 8
-wBGPalBufferEnd:
+.end
 
     ds $80
 
@@ -1509,9 +1509,9 @@ wBGPalBufferEnd:
 ; For each offset triplet written here, the order is as follows: OBP0, OBP1, BGP
 wPalOfsBuffer:
     ds 90
-wPalOfsBufferEnd:
+.end
     ds 6
-wPalIndexBufferRealEnd:
+.realEnd
 
     ds $A0
 
