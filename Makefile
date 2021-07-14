@@ -42,7 +42,7 @@ clean:
 
 bin/%.sym: obj/%.o
 	@mkdir -p $(@D)
-	TMPFILE=$$(mktemp) && rgblink -n $$TMPFILE $^ && sed 's/^0*:/BOOT:/' $$TMPFILE > $@; rm $$TMPFILE
+	TMPFILE=$$(mktemp) && rgblink -n $$TMPFILE $^ && sed 's/^0*:0/BOOT:0/' $$TMPFILE > $@; rm $$TMPFILE
 bin/%.bin: obj/%.o
 	@mkdir -p $(@D)
 	rgblink -p 0 -o $@ $^
