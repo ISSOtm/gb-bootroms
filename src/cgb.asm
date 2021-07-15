@@ -1165,6 +1165,34 @@ SetupCompatibility:
 .tryWriteLogoTilemap
     ld a, [hli]
     cp b
+    ; BUG: If it writes the logo tilemap, this loop only manages to exit thanks to dumb luck.
+    ;
+    ; As you can see, this loop exits when C reaches 0.
+    ; Since the loop itself does not `push bc`, it follows that `WriteLogoTilemap` must preserve C,
+    ; right..?
+    ; Well, if you go check, you will notice that it doesn't! In fact, it also trashes HL, which
+    ; also alters the loop's body!! (See `ld` above.) At least B is preserved, however.
+    ; Due to the way it's written, the function returns with HL = $990F and C = $0C.
+    ; This means that, after writing the logo tilemap, this loop will iterate 1 + 11 times
+    ; (with the first iteration being only partial, since it begins after the function returns)
+    ; and will thus read 11 bytes starting at $990F... but this is in the middle of tilemap!
+    ; Three factors here allow the loop misbehaving:
+    ; - This code is executed early enough in VBlank that under the worst theoretical conditions,
+    ;   the function still exits during scanline $97, leaving enough time for the loop to read
+    ;   11 bytes from VRAM safely before exiting.
+    ; - The function ends up reading from the tilemap, which was largely cleared by the GDMA at the
+    ;   end of `PerformFadeout`, so the area around the new logo tilemap is zeroes.
+    ; - Thus, the bytes that will be read by the `ld a, [hli]` above end up being $xx, $19, and
+    ;   then 9 zero bytes. Fortunately, this does not match either of the "logo tilemap checksums"
+    ;   (remember, the title checksum has been preserved in B, and it must be one of those
+    ;   checksums for the function to be executed at all), so the loop will exit.
+    ; Make this four factors if you also want to count that the corrupted loop count is small
+    ; enough that the loop always exits before the end of VBlank; if it were 0, this could have been
+    ; different.
+    ; All in all, it's highly unlikely that this behavior is intentional, especially since a lot of
+    ; functions unnecessarily push and pop registers (for example, `PerformFadeout.fadePalettes`);
+    ; it rather seems that whoever wrote this ROM did not save registers in this one place where it
+    ; did matter, but was lucky enough to get away with it unscathed.
     call z, WriteLogoTilemap
     dec c
     jr nz, .tryWriteLogoTilemap
