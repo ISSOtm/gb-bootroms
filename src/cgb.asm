@@ -283,7 +283,7 @@ Setup:
     jr nz, .checksumFailure
 
     call PerformFadeout
-IF !DEF(agb)
+IF !(DEF(agb0) || DEF(agb))
     jr .done
 ELSE
     nop
@@ -295,10 +295,8 @@ ENDC
     call SetupCompatibility
     xor a
     ldh [rSVBK], a
-; We basically know for sure that the AGB boot ROM simply inserts an extra `inc b`
-; What we don't know is where
-IF DEF(agb)
-    inc b
+IF DEF(agb0) || DEF(agb)
+    inc b ; Increment b for GBA identification
 ENDC
     ld a, $11
     ldh [rBANK], a
@@ -763,6 +761,7 @@ IF DEF(cgb0)
     jr nz, .copyLogoTile
 ENDC
 
+; Later revisions of the GBA fixed the logo TOCTOU
 IF !DEF(agb)
     ld de, HeaderLogo
 ELSE
