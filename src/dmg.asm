@@ -1,33 +1,6 @@
 INCLUDE "hardware.inc/hardware.inc"
 INCLUDE "header.inc"
 
-; Macro to allow defining gfx in a clearer format
-; Basically RGBASM's "dw `(...)" but for 1bpp
-gfx: MACRO
-POSITION = 0
-VALUE = 0
-BITS = 0
-    REPT STRLEN("\1")
-POSITION = POSITION + 1
-VALUE = VALUE << 1
-BITS = BITS + 1
-        IF !STRCMP("X", STRSUB("\1", POSITION, 1))
-            ; If pixel is turned on, set LSB
-VALUE = VALUE | 1
-        ELIF STRCMP(".", STRSUB("\1", POSITION, 1))
-            ; If char is padding, skip it
-VALUE = VALUE >> 1
-BITS = BITS - 1
-        ENDC
-
-        IF BITS == 8
-            db VALUE
-VALUE = 0
-BITS = 0
-        ENDC
-    ENDR
-ENDM
-
 
 SECTION "Boot ROM", ROM0[$000]
 
@@ -253,31 +226,50 @@ DelayFrames:
 ENDC
 
 
-Logo:
-    ; Each tile is encoded using 2 (!) bytes
-    ; The tiles are represented below
-    ; XX.. .XX. XX.. .... .... .... .... .... .... ...X X... ....
-    ; XXX. .XX. XX.. .... ..XX .... .... .... .... ...X X... ....
-    ; XXX. .XX. .... .... .XXX X... .... .... .... ...X X... ....
-    ; XX.X .XX. XX.X X.XX ..XX ..XX XX.. XX.X X... XXXX X..X XXX.
-    ;
-    ; XX.X .XX. XX.X XX.X X.XX .XX. .XX. XXX. XX.X X..X X.XX ..XX
-    ; XX.. XXX. XX.X X..X X.XX .XXX XXX. XX.. XX.X X..X X.XX ..XX
-    ; XX.. XXX. XX.X X..X X.XX .XX. .... XX.. XX.X X..X X.XX ..XX
-    ; XX.. .XX. XX.X X..X X.XX ..XX XXX. XX.. XX.. XXXX X..X XXX.
-    db $CE,$ED, $66,$66, $CC,$0D, $00,$0B, $03,$73, $00,$83, $00,$0C, $00,$0D, $00,$08, $11,$1F, $88,$89, $00,$0E
-    db $DC,$CC, $6E,$E6, $DD,$DD, $D9,$99, $BB,$BB, $67,$63, $6E,$0E, $EC,$CC, $DD,$DC, $99,$9F, $BB,$B9, $33,$3E
+; Each tile is encoded using 2 (!) bytes
+; How to read: the logo is split into two halves (top and bottom), each half being encoded
+;              separately. Each half must be read in columns.
+;              So, the first byte is `db %XX.._XXX.`, then `db %XXX._XX.X`, matching the
+;              `db $CE, $ED` found in many places. And so on! :)
+MACRO logo_row_gfx
+    ASSERT _NARG % 4 == 0
+    PUSHO
+    OPT b.X
+    FOR N1, 1, _NARG / 4 + 1 ; N1, N2, N3, and N4 iterate through the 4 equally-sized rows
+        DEF N2 = N1 + _NARG / 4
+        DEF N3 = N2 + _NARG / 4
+        DEF N4 = N3 + _NARG / 4
+        db %\<N1>\<N2>, %\<N3>\<N4>
+    ENDR
+    POPO
+ENDM
+
+; Whitespace is not stripped after line continuations until RGBDS v0.6.0, so rows are not indented
+    Logo:  logo_row_gfx \
+XX.., .XX., XX.., ...., ...., ...., ...., ...., ...., ...X, X..., ...., \
+XXX., .XX., XX.., ...., ..XX, ...., ...., ...., ...., ...X, X..., ...., \
+XXX., .XX., ...., ...., .XXX, X..., ...., ...., ...., ...X, X..., ...., \
+XX.X, .XX., XX.X, X.XX, ..XX, ..XX, XX.., XX.X, X..., XXXX, X..X, XXX.
+           logo_row_gfx \
+XX.X, .XX., XX.X, XX.X, X.XX, .XX., .XX., XXX., XX.X, X..X, X.XX, ..XX, \
+XX.., XXX., XX.X, X..X, X.XX, .XXX, XXX., XX.., XX.X, X..X, X.XX, ..XX, \
+XX.., XXX., XX.X, X..X, X.XX, .XX., ...., XX.., XX.X, X..X, X.XX, ..XX, \
+XX.., .XX., XX.X, X..X, X.XX, ..XX, XXX., XX.., XX.., XXXX, X..X, XXX.
+
 
 IF !DEF(dmg0)
 RTile:
-    gfx ..XXXX..
-    gfx .X....X.
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx .X....X.
-    gfx ..XXXX..
+    PUSHO
+    OPT b.X
+    db %..XXXX..
+    db %.X....X.
+    db %X.XXX..X
+    db %X.X..X.X
+    db %X.XXX..X
+    db %X.X..X.X
+    db %.X....X.
+    db %..XXXX..
+    POPO
 
 
 CheckLogo:

@@ -1,33 +1,6 @@
 INCLUDE "hardware.inc/hardware.inc"
 INCLUDE "header.inc"
 
-; Macro to allow defining gfx in a clearer format
-; Basically RGBASM's "dw `(...)" but for 1bpp
-gfx: MACRO
-POSITION = 0
-VALUE = 0
-BITS = 0
-    REPT STRLEN("\1")
-POSITION = POSITION + 1
-VALUE = VALUE << 1
-BITS = BITS + 1
-        IF !STRCMP("X", STRSUB("\1", POSITION, 1))
-            ; If pixel is turned on, set LSB
-VALUE = VALUE | 1
-        ELIF STRCMP(".", STRSUB("\1", POSITION, 1))
-            ; If char is padding, skip it
-VALUE = VALUE >> 1
-BITS = BITS - 1
-        ENDC
-
-        IF BITS == 8
-            db VALUE
-VALUE = 0
-BITS = 0
-        ENDC
-    ENDR
-ENDM
-
 
 SECTION "Boot ROM", ROM0[$000]
 
@@ -213,19 +186,20 @@ DecompressSecondNibble:
     ret
 
 RTile:
-    gfx ..XXXX..
-    gfx .X....X.
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx .X....X.
-    gfx ..XXXX..
+    PUSHO
+    OPT b.X
+    db %..XXXX..
+    db %.X....X.
+    db %X.XXX..X
+    db %X.X..X.X
+    db %X.XXX..X
+    db %X.X..X.X
+    db %.X....X.
+    db %..XXXX..
+    POPO
 
 
-REPT 14
-    db 0
-ENDR
+    ds 14, 0 ; Unused space
 
 
 Done:

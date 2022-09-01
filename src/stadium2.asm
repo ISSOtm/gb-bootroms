@@ -31,80 +31,16 @@ OLD_LOGO_HEIGHT equ 2
 OLD_LOGO_WIDTH equ 12
 
 
-;; Definition of VRAM layout
-
-; Helper macros
-
-NB_VRAM_BLOCKS = 0
-; Args: name, x, y, width, height
-; Will define `v<name>Map` for the tilemap, and `v<name>Attr` for the attr map
-vram_block: MACRO
-VRAM_BLOCK_NAME equs "VRAM_BLOCK{d:NB_VRAM_BLOCKS}"
-VRAM_BLOCK_NAME equs "ds (\2) + (\3) * SCRN_VX_B\nv\1\\1:\nds (\4) + (\5) * SCRN_VX_B"
-    PURGE VRAM_BLOCK_NAME
-NB_VRAM_BLOCKS = NB_VRAM_BLOCKS + 1
-ENDM
-; Arg: either `Map' for the tilemap, or `Attr' for the attr map
-; Call within an UNION
-vram_blocks: MACRO
-BLOCK_ID = 0
-    REPT NB_VRAM_BLOCKS
-        NEXTU
-VRAM_BLOCK_NAME equs "VRAM_BLOCK{d:BLOCK_ID}"
-            VRAM_BLOCK_NAME
-            PURGE VRAM_BLOCK_NAME
-BLOCK_ID = BLOCK_ID + 1
-    ENDR
-    PURGE BLOCK_ID
-ENDM
-
-; Actual definition...
-
-    vram_block GameBoyLogo, 2, 6, GB_LOGO_WIDTH, GB_LOGO_HEIGHT
-    vram_block NintendoLogo, 7, 13, vNintendoLogoTilesEnd - vNintendoLogoTiles + 1, 1 ; +1 for the "®"
-
-    vram_block BigNintendoLogo, 4, 8, OLD_LOGO_WIDTH, OLD_LOGO_HEIGHT
-
-
-; Macro to allow defining gfx in a clearer format
-; Basically RGBASM's "dw `(...)" but for 1bpp
-gfx: MACRO
-POSITION = 0
-VALUE = 0
-BITS = 0
-    REPT STRLEN("\1")
-POSITION = POSITION + 1
-VALUE = VALUE << 1
-BITS = BITS + 1
-        IF !STRCMP("X", STRSUB("\1", POSITION, 1))
-            ; If pixel is turned on, set LSB
-VALUE = VALUE | 1
-        ELIF STRCMP(".", STRSUB("\1", POSITION, 1))
-            ; If char is padding, skip it
-VALUE = VALUE >> 1
-BITS = BITS - 1
-        ENDC
-
-        IF BITS == 8
-            db VALUE
-VALUE = 0
-BITS = 0
-        ENDC
-    ENDR
-ENDM
-
-gdma_params: MACRO
+MACRO gdma_params
     db HIGH(\1), LOW(\1)
     db HIGH(\2), LOW(\2)
     db \3 / 16
 ENDM
 
-rgb: MACRO
+MACRO rgb
     REPT _NARG / 3
         dw (\1 & $1F) | ((\2 & $1F) << 5) | ((\3 & $1F) << 10)
-        SHIFT
-        SHIFT
-        SHIFT
+        SHIFT 3
     ENDR
 ENDM
 
@@ -137,14 +73,17 @@ ClearLogoTilesGDMA:
 
 
 RTile:
-    gfx ..XXXX..
-    gfx .X....X.
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx X.XXX..X
-    gfx X.X..X.X
-    gfx .X....X.
-    gfx ..XXXX..
+    PUSHO
+    OPT b.X
+    db %..XXXX..
+    db %.X....X.
+    db %X.XXX..X
+    db %X.X..X.X
+    db %X.XXX..X
+    db %X.X..X.X
+    db %.X....X.
+    db %..XXXX..
+    POPO
 RTileEnd:
 
 
@@ -192,7 +131,7 @@ Main:
 
     call SetupGameBoyLogo
 
-    ld a, BANK(vGameBoyLogoAttr)
+    ld a, BANK(vGameBoyLogoAttrs)
     ldh [rVBK], a
     ld a, LCDCF_ON | LCDCF_BG8000 | LCDCF_BGON
     ldh [rLCDC], a
@@ -412,7 +351,7 @@ DoLogoAnimation:
     cp 119
     jr nz, .dontWriteNintendoLogo
     push hl
-    xor a ; ld a, BANK(vMainTilemap)
+    xor a ; ld a, BANK(vTilemap)
     ldh [rVBK], a
     ld hl, vNintendoLogoMap
     ld a, LOW(vNintendoLogoTiles / TILE_SIZE)
@@ -421,7 +360,7 @@ DoLogoAnimation:
     inc a
     cp LOW(vNintendoLogoTilesEnd / TILE_SIZE)
     jr nz, .writeNintendoLogoMap
-    ld a, BANK(vMainAttrMap)
+    ld a, BANK(vAttrMap)
     ldh [rVBK], a
     pop hl
 .dontWriteNintendoLogo
@@ -437,7 +376,7 @@ DoLogoAnimation:
     jp z, .dontAnimateLogo
     ; Check if we're past the last tile (i.e. we finished animating)
     ld a, l
-    cp LOW(vGameBoyLogoAttr + GB_LOGO_WIDTH - 1)
+    cp LOW(vGameBoyLogoAttrs + GB_LOGO_WIDTH - 1)
     jr z, .dontWriteLogoAttrMap
     push bc
     ld b, GB_LOGO_HEIGHT ; Number of rows
@@ -510,12 +449,12 @@ PerformFadeout:
     dec c
     jr nz, .loop
     call WaitVBlank
-    ld a, BANK(vMainAttrMap)
+    ld a, BANK(vAttrMap)
     ldh [rVBK], a
     call .clearLogoArea
     ; ld hl, ClearLogoTilesGDMA
     call .clearLogoTiles
-    xor a ; ld a, BANK(vMainTilemap)
+    xor a ; ld a, BANK(vTilemap)
     ldh [rVBK], a
     call .clearLogoArea
     ret
@@ -665,7 +604,7 @@ SetupGameBoyLogo:
     dec c
     jr nz, .copyRTile
 
-    ld hl, vGameBoyLogoAttr
+    ld hl, vGameBoyLogoAttrs
     ld b, 8
     ld a, 8
 .writeAttrRow
@@ -819,21 +758,27 @@ vSecondRTile:
     ds 16
 vNintendoLogoTilesEnd:
 
-SECTION "Tilemap", VRAM[$9800],BANK[0]
+;; Definition of VRAM layout
 
-UNION
-vMainTilemap:
-    ds SCRN_VX_B * SCRN_VY_B
-    vram_blocks Map
-ENDU
+MACRO vram_block
+    ; Y rows + X columns
+    SECTION "\1 tilemap", VRAM[$9800 + (\3) * SCRN_VX_B + (\2)],BANK[0]
+    \1Map:
+    SECTION "\1 attrmap", VRAM[$9800 + (\3) * SCRN_VX_B + (\2)],BANK[1]
+    \1Attrs:
+ENDM
 
-SECTION "Attr map", VRAM[$9800],BANK[1]
+; Actual definition...
 
-UNION
-vMainAttrMap:
-    ds SCRN_VX_B * SCRN_VY_B
-    vram_blocks Attr
-ENDU
+SECTION "Tilemap", VRAM[_SCRN0],BANK[0]
+vTileMap:
+SECTION "Attrmap", VRAM[_SCRN0],BANK[1]
+vAttrMap:
+
+    vram_block vGameBoyLogo, 2, 6, GB_LOGO_WIDTH, GB_LOGO_HEIGHT
+    vram_block vNintendoLogo, 7, 13, vNintendoLogoTilesEnd - vNintendoLogoTiles + 1, 1 ; +1 for the "®"
+
+    vram_block vBigNintendoLogo, 4, 8, OLD_LOGO_WIDTH, OLD_LOGO_HEIGHT
 
 
 SECTION "Work RAM", WRAMX[$D000],BANK[2]
@@ -866,7 +811,7 @@ wPreventTerminationCounter:
     ds 1
 ;wPalShufflingFlagsCopy: ; This is only written to by the CGB0 boot ROM. Debugging purposes?
     ds 1
-;wOldPalShufflingFlags: ; This saves the previousvalue of wPalShufflingFlags, maybe for Debugging purposes?
+;wOldPalShufflingFlags: ; This saves the previous value of wPalShufflingFlags, maybe for Debugging purposes?
     ds 1
 ; Explanation at WriteShuffledPalTriplets
 ;wPalShufflingFlags:
