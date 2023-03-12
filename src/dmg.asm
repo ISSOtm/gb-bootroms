@@ -309,7 +309,7 @@ Done:
     inc a
 ENDC
     ldh [$FF50], a
-    ; Just after this is $100, the cartridge's header
+    assert @ == $100 ; Execution now falls through to the cartridge's header
 
 
 
