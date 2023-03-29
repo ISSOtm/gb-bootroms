@@ -105,7 +105,7 @@ EntryPoint:
     jr .writeTilemapRow
 
 SendData:
-    ld a, LCDCF_ON | LCDCF_BG8000 | LCDCF_BGON
+    ld a, LCDCF_ON | LCDCF_BLK01 | LCDCF_BGON
     ldh [rLCDC], a
 
     ld hl, Buffer
