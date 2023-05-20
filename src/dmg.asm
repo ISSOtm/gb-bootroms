@@ -119,7 +119,7 @@ ScrollLogo:
     ld a, $64
     ld d, a
     ldh [rSCY], a
-    ld a, LCDCF_ON | LCDCF_BG8000 | LCDCF_BGON
+    ld a, LCDCF_ON | LCDCF_BLK01 | LCDCF_BGON
     ldh [rLCDC], a
     inc b ; ld b, 1
 
@@ -179,7 +179,7 @@ ENDC
 
 IF DEF(dmg0)
 Lockup:
-    ld a, LCDCF_ON | LCDCF_BG8000 | LCDCF_BGON
+    ld a, LCDCF_ON | LCDCF_BLK01 | LCDCF_BGON
     ldh [rLCDC], a
 .loop
     ld e, 20
