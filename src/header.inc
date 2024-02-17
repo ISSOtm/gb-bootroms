@@ -1,14 +1,14 @@
-HeaderLogo equ $0104
-HeaderTitle equ $0134
-HeaderMenufacturer equ $013F
-HeaderCGBCompat equ $0143
-HeaderNewLicensee equ $0144
-HeaderSGBFlag equ $0146
-HeaderCartType equ $0147
-HeaderROMSize equ $0148
-HeaderRAMSize equ $0149
-HeaderRegionCode equ $014A
-HeaderOldLicensee equ $014B
-HeaderROMVersion equ $014C
-HeaderChecksum equ $014D
-HeaderGlobalChecksum equ $014E
+DEF HeaderLogo equ $0104
+DEF HeaderTitle equ $0134
+DEF HeaderMenufacturer equ $013F
+DEF HeaderCGBCompat equ $0143
+DEF HeaderNewLicensee equ $0144
+DEF HeaderSGBFlag equ $0146
+DEF HeaderCartType equ $0147
+DEF HeaderROMSize equ $0148
+DEF HeaderRAMSize equ $0149
+DEF HeaderRegionCode equ $014A
+DEF HeaderOldLicensee equ $014B
+DEF HeaderROMVersion equ $014C
+DEF HeaderChecksum equ $014D
+DEF HeaderGlobalChecksum equ $014E

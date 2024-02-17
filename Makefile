@@ -52,4 +52,4 @@ bin/%.sym bin/%.bin: obj/%.o
 
 obj/%.o: src/$${$$*_asm}
 	@mkdir -p ${@D}
-	rgbasm -p 0xFF -D $* -i src/ -o $@ $<
+	rgbasm -p 0xFF -D $* -I src/ -o $@ $<
