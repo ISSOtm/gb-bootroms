@@ -4,31 +4,31 @@
 INCLUDE "hardware.inc/hardware.inc"
 
 
-COLOR_MASK equ $1F ; Each color spans 5 bits
-COLOR_MAX equ $1F
-COLOR_SIZE equ 2 ; Colors are encoded as 2-byte little-endian BGR555
-COLORS_PER_PALETTE equ 4
-PALETTE_SIZE equ COLOR_SIZE * COLORS_PER_PALETTE
+DEF COLOR_MASK equ $1F ; Each color spans 5 bits
+DEF COLOR_MAX equ $1F
+DEF COLOR_SIZE equ 2 ; Colors are encoded as 2-byte little-endian BGR555
+DEF COLORS_PER_PALETTE equ 4
+DEF PALETTE_SIZE equ COLOR_SIZE * COLORS_PER_PALETTE
 
-TILE_SIZE equ 16
+DEF TILE_SIZE equ 16
 
-NB_OBJS equ 40 ; OAM contains 40 OBJs
-OBJ_SIZE equ 4 ; Each OAM OBJ is 4 bytes
-OAM_SIZE equ NB_OBJS * OBJ_SIZE
+DEF NB_OBJS equ 40 ; OAM contains 40 OBJs
+DEF OBJ_SIZE equ 4 ; Each OAM OBJ is 4 bytes
+DEF OAM_SIZE equ NB_OBJS * OBJ_SIZE
 
-WAVE_RAM_SIZE equ 16
+DEF WAVE_RAM_SIZE equ 16
 
 
 ; "GAME BOY" logo constants
-GB_LOGO_HEIGHT equ 3 ; The logo is 3 tile rows tall
-GB_LOGO_WIDTH equ 16 ; The logo is 12 tiles wide
-LOGO_BLOCK_WIDTH equ 3 ; Width in tiles of one color "block"
-NB_LOGO_PALETTES equs "((BootAnimationColorsEnd - BootAnimationColors) / COLOR_SIZE)"
-GB_LOGO_FIRST_TILE equs "LOW(vGameBoyLogoTiles / TILE_SIZE)"
+DEF GB_LOGO_HEIGHT equ 3 ; The logo is 3 tile rows tall
+DEF GB_LOGO_WIDTH equ 16 ; The logo is 12 tiles wide
+DEF LOGO_BLOCK_WIDTH equ 3 ; Width in tiles of one color "block"
+DEF NB_LOGO_PALETTES equs "((BootAnimationColorsEnd - BootAnimationColors) / COLOR_SIZE)"
+DEF GB_LOGO_FIRST_TILE equs "LOW(vGameBoyLogoTiles / TILE_SIZE)"
 
 ; Old "Nintendo" logo constants
-OLD_LOGO_HEIGHT equ 2
-OLD_LOGO_WIDTH equ 12
+DEF OLD_LOGO_HEIGHT equ 2
+DEF OLD_LOGO_WIDTH equ 12
 
 
 MACRO gdma_params
@@ -45,7 +45,7 @@ MACRO rgb
 ENDM
 
 
-rBANK equ $FF50 ; Boot ROM lockout reg
+DEF rBANK equ $FF50 ; Boot ROM lockout reg
 
 
 SECTION "First section", ROM0[$0000]
