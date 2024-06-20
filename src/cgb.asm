@@ -1,70 +1,9 @@
 INCLUDE "hardware.inc/hardware.inc"
+INCLUDE "constants.inc"
 INCLUDE "header.inc"
 
-; Official Nintendo names for those registers
-; Obtained from the archive leaked here: http://boards.4channel.org/vp/thread/43077976
-; Translation of the document's register descriptions will follow
 
-; CPU mode select
-; XXXXmmXX
-; 00: CGB mode (for execution of CGB supporting cartridges)
-; 01: DMG/MGB mode (for execution of DMG/MGB exclusive cartridges)
-; 10: PGB1 mode (a mode in which the CPU is stopped and the LCD is driven externally)
-; 11: PGB2 mode (a mode in which the LCD is driven externally while the CPU is operating)
-DEF rKEY0 equ $FF4C ; Side note: the register's name is consistent with rKEY1 at $FF4D
-; Internal/external rom bank register
-; XXXXXXXr
-; 0: monitor ROM, 1: cassette ROM
-DEF rBANK equ $FF50
-
-; KEY0 is known as the "CPU mode register" in Fig. 11 of this patent:
-; https://patents.google.com/patent/US6322447B1/en?oq=US6322447bi
-; "OBJ priority mode designating register" in the same patent
-; Credit to @mattcurrie for this finding!
-
-
-DEF COLOR_MASK equ $1F ; Each color spans 5 bits
-DEF COLOR_MAX equ $1F
-DEF COLOR_SIZE equ 2 ; Colors are encoded as 2-byte little-endian BGR555
-DEF COLORS_PER_PALETTE equ 4
-DEF PALETTE_SIZE equ 8
-
-DEF TILE_SIZE equ 16
-
-DEF NB_OBJS equ 40 ; OAM contains 40 OBJs
-DEF OBJ_SIZE equ 4 ; Each OAM OBJ is 4 bytes
-DEF OAM_SIZE equ NB_OBJS * OBJ_SIZE
-
-DEF WAVE_RAM_SIZE equ 16
-
-
-; "GAME BOY" logo constants
-DEF GB_LOGO_HEIGHT equ 3 ; The logo is 3 tile rows tall
-DEF GB_LOGO_WIDTH equ 16 ; The logo is 12 tiles wide
-DEF LOGO_BLOCK_WIDTH equ 3 ; Width in tiles of one color "block"
-DEF NB_LOGO_PALETTES equs "((BootAnimationColors.end - BootAnimationColors) / COLOR_SIZE)"
-DEF GB_LOGO_FIRST_TILE equs "LOW(vGameBoyLogoTiles / TILE_SIZE)"
-
-; Old "Nintendo" logo constants
-DEF OLD_LOGO_HEIGHT equ 2
-DEF OLD_LOGO_WIDTH equ 12
-
-
-MACRO gdma_params
-    db HIGH(\1), LOW(\1)
-    db HIGH(\2), LOW(\2)
-    db \3 / 16
-ENDM
-
-MACRO rgb
-    REPT _NARG / 3
-        dw (\1 & $1F) | ((\2 & $1F) << 5) | ((\3 & $1F) << 10)
-        SHIFT 3
-    ENDR
-ENDM
-
-
-SECTION "First section", ROM0[$000]
+SECTION "Boot ROM 1", ROM0[$0000]
 
 EntryPoint:
     ld sp, hStackBottom
@@ -149,7 +88,7 @@ LogoTilemapChecksums:
 
 Setup:
     ldh [rSVBK], a
-    ld a, $FC ; Colors: 3 3 3 0
+    ld a, %11_11_11_00
     ldh [rBGP], a
     call SetupSound
     call ClearVRAM
@@ -166,7 +105,8 @@ Setup:
 
     ld de, HeaderLogo
     ld hl, vLogoTiles
-    ld c, h ; ld c, $80 = LOW(hLogoBuffer)
+    ASSERT HIGH(vLogoTiles) == LOW(hLogoBuffer)
+    ld c, h ; ld c, LOW(hLogoBuffer)
 .processLogo
     ld a, [de]
     ldh [c], a
@@ -247,7 +187,7 @@ ENDC
     ldh [rBANK], a
 
 
-SECTION "Second section", ROM0[$200]
+SECTION "Boot ROM 2", ROM0[$0200]
 
 ClearVRAM:
     ld hl, _VRAM
@@ -363,14 +303,17 @@ CommitBGPalettes:
 
 
 SetupSound:
-    ld a, $80
-    ldh [rNR52], a ; Write AUDENA_ON
-    ldh [rNR11], a ; Write AUDLEN_DUTY_50
-    ld a, $F3
-    ldh [rNR12], a ; Write 15 << 4 | AUDENV_DOWN | 3
+    ; Enable APU
+    ld a, AUDENA_ON
+    ldh [rNR52], a
+    ; Set CH1 duty cycle to 50%
+    ASSERT AUDENA_ON == AUDLEN_DUTY_50
+    ldh [rNR11], a
+    ld a, (15 << 4) | AUDENV_DOWN | 3 ; Initial volume 15, decreasing sweep 3
+    ldh [rNR12], a
     ; Note that only channel 1 will be used!
     ldh [rNR51], a ; Route all channels to left speaker, channels 1 and 2 to right
-    ; Set both speakers to max volume, and ignore VIN
+    ; Set volume on both speakers to max, disable VIN on both speakers
     ld a, $77
     ldh [rNR50], a
     ; CGB0 boot ROM didn't init wave RAM!
@@ -444,7 +387,7 @@ DoLogoAnimation:
     ld d, LOGO_BLOCK_WIDTH
 .changePaletteLoop
     ld a, [hl]
-    and $F8
+    and ~OAMF_PALMASK
     or c
     ld [hli], a
     dec d
@@ -476,7 +419,8 @@ DoLogoAnimation:
 .playSFX
     ld a, e
     ldh [rNR13], a
-    ld a, AUDHIGH_RESTART | 7
+    ASSERT HIGH($783) == HIGH($7C1)
+    ld a, AUDHIGH_RESTART | HIGH($783)
     ldh [rNR14], a
 .dontPlaySFX
 .dontAnimateLogo
@@ -1064,7 +1008,7 @@ PickDMGPalette:
     ld a, e
     ld [hl], a
     ld a, d
-    and $E0
+    and ~$1F
     rlca
     rlca
     rlca
@@ -1090,9 +1034,9 @@ SetupCompatibility:
     jr .done
 
 .dmgMode
-    ld a, $04
+    ld a, KEY0_DMG
     ldh [rKEY0], a
-    ld a, 1
+    ld a, OPRI_COORD
     ldh [rOPRI], a
 
     ld hl, wPalBuffer
@@ -1387,43 +1331,43 @@ JoypadCombosTripletIDsAndFlags:
 
 
 
-SECTION "Video RAM", VRAM[$8000],BANK[0]
+SECTION "VRAM tiles 0", VRAM[_VRAM], BANK[0]
 
 vBlankTile:
-    ds $10
+    ds TILE_SIZE
 vLogoTiles:
-    ds $10 * (HeaderTitle - HeaderLogo) / 2
+    ds  (HeaderTitle - HeaderLogo) * TILE_SIZE / 2
 vRTile:
-    ds $10
+    ds TILE_SIZE
 
-SECTION "Video RAM bank 1", VRAM[$8000],BANK[1]
+SECTION "VRAM tiles 1", VRAM[_VRAM], BANK[1]
+
 vTiles:
-
-    ds $80
+    ds 8 * TILE_SIZE
 
 vGameBoyLogoTiles:
     ds (GameBoyLogoTiles.end - GameBoyLogoTiles) * 4
 vNintendoLogoTiles:
-    ds 6 * 16
+    ds 6 * TILE_SIZE
 vSecondRTile:
-    ds 16
+    ds TILE_SIZE
 vNintendoLogoTilesEnd:
 
 ;; Definition of VRAM layout
 
 MACRO vram_block
     ; Y rows + X columns
-    SECTION "\1 tilemap", VRAM[$9800 + (\3) * SCRN_VX_B + (\2)],BANK[0]
+    SECTION "\1 tilemap", VRAM[_SCRN0 + SCRN_VX_B * (\3) + (\2)], BANK[0]
     \1Map:
-    SECTION "\1 attrmap", VRAM[$9800 + (\3) * SCRN_VX_B + (\2)],BANK[1]
+    SECTION "\1 attrmap", VRAM[_SCRN0 + SCRN_VX_B * (\3) + (\2)], BANK[1]
     \1Attrs:
 ENDM
 
 ; Actual definition...
 
-SECTION "Tilemap", VRAM[_SCRN0],BANK[0]
+SECTION "Tilemap", VRAM[_SCRN0], BANK[0]
 vTileMap:
-SECTION "Attrmap", VRAM[_SCRN0],BANK[1]
+SECTION "Attrmap", VRAM[_SCRN0], BANK[1]
 vAttrMap:
 
     vram_block vGameBoyLogo, 2, 6, GB_LOGO_WIDTH, GB_LOGO_HEIGHT
@@ -1432,7 +1376,7 @@ vAttrMap:
     vram_block vBigNintendoLogo, 4, 8, OLD_LOGO_WIDTH, OLD_LOGO_HEIGHT
 
 
-SECTION "Work RAM", WRAMX[$D000],BANK[2]
+SECTION "Work RAM", WRAMX[_RAMBANK], BANK[2]
 wWorkRAM:
 
 wTitleChecksum:
@@ -1451,7 +1395,6 @@ wPressedButtons: ; This is never read, only written to
 wPaletteOverrideIndex:
     ds 1
 
-    ; TODO: some bytes around WhichPalTriplet and D00B are used in specific circumstances, investigate and label them
 wWhichPalTripletCopy:
     ds 1
 wOldWhichPalTriplet:
@@ -1486,9 +1429,9 @@ wBGPalBuffer:
 ; The 3 palette offsets are written here for all triplets, modified by the "shuffling flags"
 ; For each offset triplet written here, the order is as follows: OBP0, OBP1, BGP
 wPalOfsBuffer:
-    ds 90
+    ds 3 * 30
 .end
-    ds 6
+    ds 3 * 2
 .realEnd
 
     ds $A0
@@ -1497,10 +1440,9 @@ wPalBuffer:
     ds 96 * 8
 
 
-SECTION "High RAM", HRAM[$FF80]
+SECTION "HRAM", HRAM[_HRAM]
 
 hLogoBuffer: ; Relied on being at $FF80
-    ; ds ?
     ds $7E
 
 hStackBottom:

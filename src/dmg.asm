@@ -1,14 +1,15 @@
 INCLUDE "hardware.inc/hardware.inc"
+INCLUDE "constants.inc"
 INCLUDE "header.inc"
 
 
-SECTION "Boot ROM", ROM0[$000]
+SECTION "Boot ROM", ROM0[$0000]
 
 EntryPoint:
     ld sp, hStackBottom
 
     xor a
-    ld hl, $9FFF
+    ld hl, _VRAM + SIZEOF(VRAM) - 1
 .clearVRAM
     ld [hld], a
     bit 7, h
@@ -18,22 +19,26 @@ EntryPoint:
     ld c, LOW(rNR11) ; CH1 length
     ; Enable APU
     ; This sets (roughly) all audio registers to 0
-    ld a, $80
+    ld a, AUDENA_ON
     ld [hld], a
-    ; hl = rNR51
+    ASSERT rNR52 - 1 == rNR51
     ; Set CH1 duty cycle to 25%
+    ASSERT AUDENA_ON == AUDLEN_DUTY_50
     ldh [c], a
-    inc c ; ld c, LOW(rNR11) ; CH1 envelope
-    ld a, $F3 ; Initial volume 15, 3 decreasing sweep
+    inc c
+    ASSERT LOW(rNR11) + 1 == LOW(rNR12)
+    ; Set CH1 envelope
+    ld a, (15 << 4) | AUDENV_DOWN | 3 ; Initial volume 15, decreasing sweep 3
     ldh [c], a
     ; Route all channels to left speaker, CH2 and CH1 to right speaker
+    ; Note that only channel 1 will be used!
     ld [hld], a
-    ; hl = rNR50
-    ; Set volume on both speakers to 7, disable VIN on both speakers
+    ASSERT rNR51 - 1 == rNR50
+    ; Set volume on both speakers to max, disable VIN on both speakers
     ld a, $77
     ld [hl], a
 
-    ld a, $FC
+    ld a, %11_11_11_00
     ldh [rBGP], a
 
 IF DEF(dmg0)
@@ -116,7 +121,7 @@ ENDC
 ScrollLogo:
     ; a = 0
     ld h, a ; ld h, 0
-    ld a, $64
+    ld a, 100
     ld d, a
     ldh [rSCY], a
     ld a, LCDCF_ON | LCDCF_BLK01 | LCDCF_BGON
@@ -158,7 +163,7 @@ ENDC
     ldh [c], a
     inc c ; ld c, LOW(rNR14) ; CH1 frequency high byte
     ; Set frequency to $7XX and restart channel
-    ld a, $87
+    ld a, AUDHIGH_RESTART | 7
     ldh [c], a
 .dontPlaySound
     ldh a, [rSCY]
@@ -173,7 +178,7 @@ IF DEF(dmg0)
 ELSE
     jr nz, CheckLogo
 ENDC
-    ld d, $20
+    ld d, 32
     jr .loop
 
 
@@ -298,9 +303,9 @@ CheckLogo:
     jr nz, .checksumFailure
 
     IF DEF(mgb)
-    ld a, $FF
+    	ld a, BOOTUP_A_MGB
     ELSE
-    ld a, 1
+    	ld a, BOOTUP_A_DMG
     ENDC
 
 ELSE
@@ -308,21 +313,21 @@ ELSE
 Done:
     inc a
 ENDC
-    ldh [$FF50], a
-    assert @ == $100 ; Execution now falls through to the cartridge's header
+    ldh [rBANK], a
+    ASSERT @ == $100 ; Execution now falls through to the cartridge's header
 
 
 
-SECTION "VRAM tiles", VRAM[$8000],BANK[0]
+SECTION "VRAM tiles", VRAM[_VRAM], BANK[0]
 
 vBlankTile:
-    ds $10
+    ds TILE_SIZE
 vLogoTiles:
-    ds $10 * (HeaderTitle - HeaderLogo) / 2
+    ds (HeaderTitle - HeaderLogo) * TILE_SIZE / 2
 vRTile:
-    ds $10
+    ds TILE_SIZE
 
-SECTION "VRAM tilemap", VRAM[$9800],BANK[0]
+SECTION "VRAM tilemap", VRAM[_SCRN0], BANK[0]
 
 vMainTilemap:
     ds SCRN_VX_B * SCRN_VY_B
