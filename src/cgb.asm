@@ -16,11 +16,6 @@ DEF rKEY0 equ $FF4C ; Side note: the register's name is consistent with rKEY1 at
 ; XXXXXXXr
 ; 0: monitor ROM, 1: cassette ROM
 DEF rBANK equ $FF50
-; OBJ priority mode designation register
-; XXXXXXXp
-; 0: Lower OBJ-NO object priority
-; 1: Smaller X coordinate object priority
-DEF rOPRI equ $FF6C
 
 ; KEY0 is known as the "CPU mode register" in Fig. 11 of this patent:
 ; https://patents.google.com/patent/US6322447B1/en?oq=US6322447bi
