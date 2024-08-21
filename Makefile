@@ -28,9 +28,14 @@ agb_size  := 2304
 stadium2_asm  := stadium2.asm
 stadium2_size := 1008
 
+UNAME_S := $(shell uname -s)
+SHASUM := sha256sum
+ifeq ($(UNAME_S), Darwin)
+	SHASUM = shasum -a 256
+endif
 
 compare: sha256sums.txt all
-	sha256sum -c $<
+	${SHASUM} -c $<
 .PHONY: compare
 
 BINS := $(patsubst %,bin/%.bin,${MODELS})
