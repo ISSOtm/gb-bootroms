@@ -35,7 +35,7 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 compare: sha256sums.txt all
-	$(SHASUM) -c $<
+	${SHASUM} -c $<
 .PHONY: compare
 
 BINS := $(patsubst %,bin/%.bin,${MODELS})
