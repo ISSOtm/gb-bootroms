@@ -1,4 +1,5 @@
 INCLUDE "hardware.inc/hardware.inc"
+INCLUDE "constants.inc"
 INCLUDE "header.inc"
 
 
@@ -6,11 +7,12 @@ SECTION "Boot ROM", ROM0[$000]
 
 EntryPoint:
     ld sp, hStackBottom
+
     ld a, $30
     ldh [rP1], a
 
     xor a
-    ld hl, $9FFF
+    ld hl, _VRAM + SIZEOF(VRAM) - 1
 .clearVRAM
     ld [hld], a
     bit 7, h
@@ -20,26 +22,29 @@ EntryPoint:
     ld c, LOW(rNR11) ; CH1 length
     ; Enable APU
     ; This sets (roughly) all audio registers to 0
-    ld a, $80
+    ld a, AUDENA_ON
     ld [hld], a
-    ; hl = rNR51
+    ASSERT rNR52 - 1 == rNR51
     ; Set CH1 duty cycle to 25%
+    ASSERT AUDENA_ON == AUDLEN_DUTY_50
     ldh [c], a
-    inc c ; ld c, LOW(rNR11) ; CH1 envelope
-    ld a, $F3 ; Initial volume 15, 3 decreasing sweep
+    inc c
+    ASSERT LOW(rNR11) + 1 == LOW(rNR12)
+    ld a, (15 << 4) | AUDENV_DOWN | 3 ; Initial volume 15, decreasing sweep 3
     ldh [c], a
     ; Route all channels to left speaker, CH2 and CH1 to right speaker
+    ; Note that only channel 1 will be used!
     ld [hld], a
-    ; hl = rNR50
-    ; Set volume on both speakers to 7, disable VIN on both speakers
+    ASSERT rNR51 - 1 == rNR50
+    ; Set volume on both speakers to max, disable VIN on both speakers
     ld a, $77
     ld [hl], a
 
-    ld a, $FC
+    ld a, %11_11_11_00
     ldh [rBGP], a
 
 
-    ld hl, BufferEnd - 1
+    ld hl, wBufferEnd - 1
     ld c, 8
     xor a
 .clearBuffer
@@ -47,7 +52,7 @@ EntryPoint:
     dec c
     jr nz, .clearBuffer
 
-    ld de, HeaderGlobalChecksum+1
+    ld de, HeaderGlobalChecksum + 1
     ld a, $FB ; Packet ID
     ld c, $06
 .copyHeader
@@ -108,7 +113,7 @@ SendData:
     ld a, LCDCF_ON | LCDCF_BLK01 | LCDCF_BGON
     ldh [rLCDC], a
 
-    ld hl, Buffer
+    ld hl, wBuffer
     ld c, LOW(rP1)
 .sendPacket
     ld a, 0
@@ -140,9 +145,10 @@ SendData:
     ldh [c], a
     call Wait4Frames
     ld a, l
-    cp LOW(BufferEnd)
+    cp LOW(wBufferEnd)
     jr nz, .sendPacket
 
+    ; Set frequency to $7C1
     ld c, LOW(rNR13)
     ld a, $C1
     ldh [c], a
@@ -212,26 +218,26 @@ ENDC
 
 
 
-SECTION "VRAM tiles", VRAM[$8000],BANK[0]
+SECTION "VRAM tiles", VRAM[_VRAM], BANK[0]
 
 vBlankTile:
-    ds $10
+    ds TILE_SIZE
 vLogoTiles:
-    ds $10 * (HeaderTitle - HeaderLogo) / 2
+    ds (HeaderTitle - HeaderLogo) * TILE_SIZE / 2
 vRTile:
-    ds $10
+    ds TILE_SIZE
 
-SECTION "VRAM tilemap", VRAM[$9800],BANK[0]
+SECTION "VRAM tilemap", VRAM[_SCRN0], BANK[0]
 
 vMainTilemap:
     ds SCRN_VX_B * SCRN_VY_B
 
 
-SECTION "WRAM", WRAM0[$C000]
+SECTION "WRAM", WRAM0[_RAM]
 
-Buffer:
+wBuffer:
     ds $60
-BufferEnd:
+wBufferEnd:
 
 
 

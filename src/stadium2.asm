@@ -2,58 +2,17 @@
 ; It can be found at offset 0x015995f0 in the US release
 
 INCLUDE "hardware.inc/hardware.inc"
+INCLUDE "constants.inc"
 
 
-DEF COLOR_MASK equ $1F ; Each color spans 5 bits
-DEF COLOR_MAX equ $1F
-DEF COLOR_SIZE equ 2 ; Colors are encoded as 2-byte little-endian BGR555
-DEF COLORS_PER_PALETTE equ 4
-DEF PALETTE_SIZE equ COLOR_SIZE * COLORS_PER_PALETTE
-
-DEF TILE_SIZE equ 16
-
-DEF NB_OBJS equ 40 ; OAM contains 40 OBJs
-DEF OBJ_SIZE equ 4 ; Each OAM OBJ is 4 bytes
-DEF OAM_SIZE equ NB_OBJS * OBJ_SIZE
-
-DEF WAVE_RAM_SIZE equ 16
-
-
-; "GAME BOY" logo constants
-DEF GB_LOGO_HEIGHT equ 3 ; The logo is 3 tile rows tall
-DEF GB_LOGO_WIDTH equ 16 ; The logo is 12 tiles wide
-DEF LOGO_BLOCK_WIDTH equ 3 ; Width in tiles of one color "block"
-DEF NB_LOGO_PALETTES equs "((BootAnimationColorsEnd - BootAnimationColors) / COLOR_SIZE)"
-DEF GB_LOGO_FIRST_TILE equs "LOW(vGameBoyLogoTiles / TILE_SIZE)"
-
-; Old "Nintendo" logo constants
-DEF OLD_LOGO_HEIGHT equ 2
-DEF OLD_LOGO_WIDTH equ 12
-
-
-MACRO gdma_params
-    db HIGH(\1), LOW(\1)
-    db HIGH(\2), LOW(\2)
-    db \3 / 16
-ENDM
-
-MACRO rgb
-    REPT _NARG / 3
-        dw (\1 & $1F) | ((\2 & $1F) << 5) | ((\3 & $1F) << 10)
-        SHIFT 3
-    ENDR
-ENDM
-
-
-DEF rBANK equ $FF50 ; Boot ROM lockout reg
-
-
-SECTION "First section", ROM0[$0000]
+SECTION "Boot ROM", ROM0[$0000]
 
 EntryPoint:
     ld sp, hStackBottom
+
     ld a, $80
     ldh [rBCPS], a
+
     ld c, LOW(rBCPD)
     xor a
     ld b, 8 * COLORS_PER_PALETTE * COLOR_SIZE
@@ -273,8 +232,7 @@ SECTION "Header", ROM0[$0100] ; Yes, for some reason this boot ROM has a valid h
     ; XX.. XXX. XX.X X..X X.XX .XX. .... XX.. XX.X X..X X.XX ..XX
     ; XX.. .XX. XX.X X..X X.XX ..XX XXX. XX.. XX.. XXXX X..X XXX.
 HeaderLogo:
-    db $CE,$ED, $66,$66, $CC,$0D, $00,$0B, $03,$73, $00,$83, $00,$0C, $00,$0D, $00,$08, $11,$1F, $88,$89, $00,$0E
-    db $DC,$CC, $6E,$E6, $DD,$DD, $D9,$99, $BB,$BB, $67,$63, $6E,$0E, $EC,$CC, $DD,$DC, $99,$9F, $BB,$B9, $33,$3E
+    NINTENDO_LOGO
 HeaderTitle:
     ds 15, 0 ; Title
     db CART_COMPATIBLE_DMG_GBC
@@ -728,7 +686,7 @@ BootAnimationColors:
     rgb $1F, $00, $1F ; Purple
     rgb $1F, $00, $00 ; Red
     rgb $1F, $1F, $00 ; Yellow
-BootAnimationColorsEnd:
+.end
 
     ds 4, 0 ; Padding
 
@@ -736,26 +694,26 @@ BootAnimationColorsEnd:
 
 
 
-SECTION "Video RAM", VRAM[$8000],BANK[0]
+SECTION "VRAM tiles 0", VRAM[$8000], BANK[0]
 
 vBlankTile:
-    ds $10
+    ds TILE_SIZE
 vLogoTiles:
-    ds $10 * (HeaderTitle - HeaderLogo) / 2
+    ds (HeaderTitle - HeaderLogo) * TILE_SIZE / 2
 vRTile:
-    ds $10
+    ds TILE_SIZE
 
-SECTION "Video RAM bank 1", VRAM[$8000],BANK[1]
+SECTION "VRAM tiles 1", VRAM[$8000], BANK[1]
+
 vTiles:
-
-    ds $80
+    ds 8 * TILE_SIZE
 
 vGameBoyLogoTiles:
     ds (GameBoyLogoTilesEnd - GameBoyLogoTiles) * 4
 vNintendoLogoTiles:
-    ds 6 * 16
+    ds 6 * TILE_SIZE
 vSecondRTile:
-    ds 16
+    ds TILE_SIZE
 vNintendoLogoTilesEnd:
 
 ;; Definition of VRAM layout
