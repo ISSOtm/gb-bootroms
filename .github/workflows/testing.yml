@@ -1,0 +1,23 @@
+name: Regression testing
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '37 13 20 * *'
+
+jobs:
+  testing:
+    strategy:
+      matrix:
+        rgbds: ['', '--HEAD']
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install RGBDS
+        run: |
+          brew install ${{ matrix.rgbds }} rgbds
+      - name: Build ROMs
+        run: |
+          make compare
