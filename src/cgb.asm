@@ -34,31 +34,15 @@ OverrideColors:
     rgb $00,$00,$00, $1f,$1f,$00
 
 
-; Each tile is encoded using 2 (!) bytes
-; How to read: the logo is split into two halves (top and bottom), each half being encoded
-;              separately. Each half must be read in columns.
-;              So, the first byte is `db %XX.._XXX.`, then `db %XXX._XX.X`, matching the
-;              `db $CE, $ED` found in many places. And so on! :)
-MACRO logo_row_gfx
-    ASSERT _NARG % 4 == 0
-    PUSHO
-    OPT b.X
-    FOR N1, 1, _NARG / 4 + 1 ; N1, N2, N3, and N4 iterate through the 4 equally-sized rows
-        DEF N2 = N1 + _NARG / 4
-        DEF N3 = N2 + _NARG / 4
-        DEF N4 = N3 + _NARG / 4
-        db %\<N1>\<N2>, %\<N3>\<N4>
-    ENDR
-    POPO
-ENDM
-
 ; Whitespace is not stripped after line continuations until RGBDS v0.6.0, so rows are not indented
-    LogoTopHalf:  logo_row_gfx \
+LogoTopHalf:
+    logo_row_gfx_nybbles \
 XX.., .XX., XX.., ...., ...., ...., ...., ...., ...., ...X, X..., ...., \
 XXX., .XX., XX.., ...., ..XX, ...., ...., ...., ...., ...X, X..., ...., \
 XXX., .XX., ...., ...., .XXX, X..., ...., ...., ...., ...X, X..., ...., \
 XX.X, .XX., XX.X, X.XX, ..XX, ..XX, XX.., XX.X, X..., XXXX, X..X, XXX.
-    LogoBottomHalf:  logo_row_gfx \
+LogoBottomHalf:
+    logo_row_gfx_nybbles \
 XX.X, .XX., XX.X, XX.X, X.XX, .XX., .XX., XXX., XX.X, X..X, X.XX, ..XX, \
 XX.., XXX., XX.X, X..X, X.XX, .XXX, XXX., XX.., XX.X, X..X, X.XX, ..XX, \
 XX.., XXX., XX.X, X..X, X.XX, .XX., ...., XX.., XX.X, X..X, X.XX, ..XX, \
@@ -817,7 +801,7 @@ ENDC
     ld b, 0
     add hl, bc
     ld a, [hl]
-    and $1F
+    and COLOR_MASK
 IF DEF(cgb0)
     ld [wWhichPalTripletCopy], a
 ENDC
@@ -1000,7 +984,7 @@ PickDMGPalette:
     add hl, de
     ld d, [hl]
     ld a, d
-    and $1F
+    and COLOR_MASK
     ld e, a
     ld hl, wWhichPalTriplet
     ld a, [hld]
@@ -1008,7 +992,7 @@ PickDMGPalette:
     ld a, e
     ld [hl], a
     ld a, d
-    and ~$1F
+    and ~COLOR_MASK
     rlca
     rlca
     rlca
@@ -1089,58 +1073,22 @@ SetupCompatibility:
 
 
 GameBoyLogoTiles:
-    ; Each row is 1bpp (different colors are achieved through attrmap modifications), halving the size
-    ; And then the logo is upscaled vertically (doubled), halving yet again
-
-    ; TODO: use a more explicit format instead of a raw dump
-    db $01, $0F, $3F, $7E
-    db $FF, $FF, $C0, $00
-    db $C0, $F0, $F1, $03
-    db $7C, $FC, $FE, $FE
-    db $03, $07, $07, $0F
-    db $E0, $E0, $F0, $F0
-    db $1E, $3E, $7E, $FE
-    db $0F, $0F, $1F, $1F
-    db $FF, $FF, $00, $00
-    db $01, $01, $01, $03
-    db $FF, $FF, $E1, $E0
-    db $C0, $F0, $F9, $FB
-    db $1F, $7F, $F8, $E0
-    db $F3, $FD, $3E, $1E
-    db $E0, $F0, $F9, $7F
-    db $3E, $7C, $F8, $E0
-    db $F8, $F0, $F0, $F8
-    db $00, $00, $7F, $7F
-    db $07, $0F, $9F, $BF
-    db $9E, $1F, $FF, $FF
-    db $0F, $1E, $3E, $3C
-    db $F1, $FB, $7F, $7F
-    db $FE, $DE, $DF, $9F
-    db $1F, $3F, $3E, $3C
-    db $F8, $F8, $00, $00
-    db $03, $03, $07, $07
-    db $FF, $FF, $C1, $C0
-    db $F3, $E7, $F7, $F3
-    db $C0, $C0, $C0, $C0
-    db $1F, $1F, $1E, $3E
-    db $3F, $1F, $3E, $3E
-    db $80, $00, $00, $00
-    db $7C, $1F, $07, $00
-    db $0F, $FF, $FE, $00
-    db $7C, $F8, $F0, $00
-    db $1F, $0F, $0F, $00
-    db $7C, $F8, $F8, $00
-    db $3F, $3E, $1C, $00
-    db $0F, $0F, $0F, $00
-    db $7C, $FF, $FF, $00
-    db $00, $F8, $F8, $00
-    db $07, $0F, $0F, $00
-    db $81, $FF, $FF, $00
-    db $F3, $E1, $80, $00
-    db $E0, $FF, $7F, $00
-    db $FC, $F0, $C0, $00
-    db $3E, $7C, $7C, $00
-    db $00, $00, $00, $00
+; Whitespace is not stripped after line continuations until RGBDS v0.6.0, so rows are not indented
+    logo_row_gfx_bytes \
+.......X, XXXXXXXX, XX......, .XXXXX.., ......XX, XXX....., ...XXXX., ....XXXX, XXXXXXXX, .......X, XXXXXXXX, XX......, ...XXXXX, XXXX..XX, XXX....., ..XXXXX., \
+....XXXX, XXXXXXXX, XXXX...., XXXXXX.., .....XXX, XXX....., ..XXXXX., ....XXXX, XXXXXXXX, .......X, XXXXXXXX, XXXX...., .XXXXXXX, XXXXXX.X, XXXX...., .XXXXX.., \
+..XXXXXX, XX......, XXXX...X, XXXXXXX., .....XXX, XXXX...., .XXXXXX., ...XXXXX, ........, .......X, XXX....X, XXXXX..X, XXXXX..., ..XXXXX., XXXXX..X, XXXXX..., \
+.XXXXXX., ........, ......XX, XXXXXXX., ....XXXX, XXXX...., XXXXXXX., ...XXXXX, ........, ......XX, XXX....., XXXXX.XX, XXX....., ...XXXX., .XXXXXXX, XXX.....
+    logo_row_gfx_bytes \
+XXXXX..., ........, .....XXX, X..XXXX., ....XXXX, XXXX...X, XXXXXXX., ...XXXXX, XXXXX..., ......XX, XXXXXXXX, XXXX..XX, XX......, ...XXXXX, ..XXXXXX, X......., \
+XXXX...., ........, ....XXXX, ...XXXXX, ...XXXX., XXXXX.XX, XX.XXXX., ..XXXXXX, XXXXX..., ......XX, XXXXXXXX, XXX..XXX, XX......, ...XXXXX, ...XXXXX, ........, \
+XXXX...., .XXXXXXX, X..XXXXX, XXXXXXXX, ..XXXXX., .XXXXXXX, XX.XXXXX, ..XXXXX., ........, .....XXX, XX.....X, XXXX.XXX, XX......, ...XXXX., ..XXXXX., ........, \
+XXXXX..., .XXXXXXX, X.XXXXXX, XXXXXXXX, ..XXXX.., .XXXXXXX, X..XXXXX, ..XXXX.., ........, .....XXX, XX......, XXXX..XX, XX......, ..XXXXX., ..XXXXX., ........
+    logo_row_gfx_bytes \
+.XXXXX.., ....XXXX, .XXXXX.., ...XXXXX, .XXXXX.., ..XXXXXX, ....XXXX, .XXXXX.., ........, .....XXX, X......X, XXXX..XX, XXX....., XXXXXX.., ..XXXXX., ........, \
+...XXXXX, XXXXXXXX, XXXXX..., ....XXXX, XXXXX..., ..XXXXX., ....XXXX, XXXXXXXX, XXXXX..., ....XXXX, XXXXXXXX, XXX....X, XXXXXXXX, XXXX...., .XXXXX.., ........, \
+.....XXX, XXXXXXX., XXXX...., ....XXXX, XXXXX..., ...XXX.., ....XXXX, XXXXXXXX, XXXXX..., ....XXXX, XXXXXXXX, X......., .XXXXXXX, XX......, .XXXXX.., ........, \
+........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........, ........
 .end
 
 
