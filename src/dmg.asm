@@ -231,31 +231,14 @@ DelayFrames:
 ENDC
 
 
-; Each tile is encoded using 2 (!) bytes
-; How to read: the logo is split into two halves (top and bottom), each half being encoded
-;              separately. Each half must be read in columns.
-;              So, the first byte is `db %XX.._XXX.`, then `db %XXX._XX.X`, matching the
-;              `db $CE, $ED` found in many places. And so on! :)
-MACRO logo_row_gfx
-    ASSERT _NARG % 4 == 0
-    PUSHO
-    OPT b.X
-    FOR N1, 1, _NARG / 4 + 1 ; N1, N2, N3, and N4 iterate through the 4 equally-sized rows
-        DEF N2 = N1 + _NARG / 4
-        DEF N3 = N2 + _NARG / 4
-        DEF N4 = N3 + _NARG / 4
-        db %\<N1>\<N2>, %\<N3>\<N4>
-    ENDR
-    POPO
-ENDM
-
 ; Whitespace is not stripped after line continuations until RGBDS v0.6.0, so rows are not indented
-    Logo:  logo_row_gfx \
+Logo:
+    logo_row_gfx_nybbles \
 XX.., .XX., XX.., ...., ...., ...., ...., ...., ...., ...X, X..., ...., \
 XXX., .XX., XX.., ...., ..XX, ...., ...., ...., ...., ...X, X..., ...., \
 XXX., .XX., ...., ...., .XXX, X..., ...., ...., ...., ...X, X..., ...., \
 XX.X, .XX., XX.X, X.XX, ..XX, ..XX, XX.., XX.X, X..., XXXX, X..X, XXX.
-           logo_row_gfx \
+    logo_row_gfx_nybbles \
 XX.X, .XX., XX.X, XX.X, X.XX, .XX., .XX., XXX., XX.X, X..X, X.XX, ..XX, \
 XX.., XXX., XX.X, X..X, X.XX, .XXX, XXX., XX.., XX.X, X..X, X.XX, ..XX, \
 XX.., XXX., XX.X, X..X, X.XX, .XX., ...., XX.., XX.X, X..X, X.XX, ..XX, \
@@ -303,9 +286,9 @@ CheckLogo:
     jr nz, .checksumFailure
 
     IF DEF(mgb)
-    	ld a, BOOTUP_A_MGB
+        ld a, BOOTUP_A_MGB
     ELSE
-    	ld a, BOOTUP_A_DMG
+        ld a, BOOTUP_A_DMG
     ENDC
 
 ELSE
