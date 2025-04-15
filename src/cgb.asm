@@ -634,8 +634,8 @@ IF DEF(cgb0)
     jr nz, .copyLogoTile
 ENDC
 
-; Later revisions of the GBA fixed the logo TOCTTOU
-IF !DEF(agb)
+; cgbE and later revisions of the GBA fixed the logo TOCTTOU
+IF !DEF(cgbE) && !DEF(agb)
     ld de, HeaderLogo
 ELSE
     ld de, hLogoBuffer
