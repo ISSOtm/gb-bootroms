@@ -2,7 +2,7 @@
 .SECONDEXPANSION:
 
 
-MODELS := dmg0 dmg mgb sgb sgb2 cgb0 cgb agb0 agb stadium2
+MODELS := dmg0 dmg mgb sgb sgb2 cgb0 cgb cgbE agb0 agb stadium2
 
 dmg0_asm  := dmg.asm
 dmg0_size := 256
@@ -20,6 +20,8 @@ cgb0_asm  := cgb.asm
 cgb0_size := 2304
 cgb_asm   := cgb.asm
 cgb_size  := 2304
+cgbE_asm  := cgb.asm
+cgbE_size := 2304
 agb0_asm  := cgb.asm
 agb0_size := 2304
 agb_asm   := cgb.asm
