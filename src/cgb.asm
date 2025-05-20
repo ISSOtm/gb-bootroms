@@ -1018,7 +1018,7 @@ SetupCompatibility:
     jr .done
 
 .dmgMode
-    ld a, KEY0_DMG
+    ld a, KEY0F_DMG
     ldh [rKEY0], a
     ld a, OPRI_COORD
     ldh [rOPRI], a
